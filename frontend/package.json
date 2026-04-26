@@ -1,0 +1,16 @@
+{
+  "name": "exam-papers-system-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for Exam Papers Management System with Comments and Bookmarks",
+  "main": "public/index.html",
+  "scripts": {
+    "start": "echo 'No build step required - static files ready'",
+    "build": "echo 'Frontend build complete'",
+    "dev": "echo 'Development mode - use live server'"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "keywords": ["exam", "papers", "management", "education", "frontend"],
+  "author": "claude-01",
+  "license": "MIT"
+}
