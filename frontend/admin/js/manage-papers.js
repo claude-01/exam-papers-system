@@ -1025,15 +1025,61 @@ function displayAdminComments(comments) {
     }
     
     commentsList.innerHTML = comments.map(comment => `
-        <div class="admin-comment-item">
+        <div class="admin-comment-item" data-comment-id="${comment.id}">
             <div class="admin-comment-header">
                 <div class="admin-comment-author ${comment.is_admin_comment ? 'admin' : ''}">
                     ${comment.user_name}
                     ${comment.is_admin_comment ? '<span class="admin-comment-badge">Admin</span>' : ''}
                 </div>
                 <div class="admin-comment-time">${formatAdminCommentTime(comment.created_at)}</div>
+                <div class="admin-comment-actions">
+                    ${!comment.is_admin_comment ? `
+                        <button class="btn btn-sm btn-primary" onclick="showReplyForm(${comment.id})" title="Reply">
+                            <i class="fas fa-reply"></i> Reply
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteComment(${comment.id})" title="Delete">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    ` : `
+                        <button class="btn btn-sm btn-danger" onclick="deleteComment(${comment.id})" title="Delete">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    `}
+                </div>
             </div>
             <div class="admin-comment-text">${escapeAdminHtml(comment.comment)}</div>
+            <div class="admin-reply-form" id="reply-form-${comment.id}" style="display: none;">
+                <div class="reply-input-group">
+                    <textarea class="form-control" id="reply-input-${comment.id}" 
+                        placeholder="Write your reply..." 
+                        maxlength="1000" rows="2"></textarea>
+                    <div class="reply-actions">
+                        <button class="btn btn-sm btn-secondary" onclick="cancelReply(${comment.id})">Cancel</button>
+                        <button class="btn btn-sm btn-primary" onclick="submitReply(${comment.id})">
+                            <i class="fas fa-paper-plane"></i> Reply
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="admin-replies" id="replies-${comment.id}">
+                ${comment.replies ? comment.replies.map(reply => `
+                    <div class="admin-reply-item">
+                        <div class="admin-reply-header">
+                            <div class="admin-reply-author">
+                                ${reply.user_name}
+                                ${reply.is_admin_comment ? '<span class="admin-comment-badge">Admin</span>' : ''}
+                            </div>
+                            <div class="admin-reply-time">${formatAdminCommentTime(reply.created_at)}</div>
+                            <div class="admin-reply-actions">
+                                <button class="btn btn-sm btn-danger" onclick="deleteComment(${reply.id})" title="Delete">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </div>
+                        </div>
+                        <div class="admin-reply-text">${escapeAdminHtml(reply.comment)}</div>
+                    </div>
+                `).join('') : ''}
+            </div>
         </div>
     `).join('');
 }
@@ -1144,6 +1190,121 @@ function escapeAdminHtml(text) {
     return div.innerHTML;
 }
 
+// ============== ADMIN REPLY AND DELETE FUNCTIONS ==============
+
+function showReplyForm(commentId) {
+    // Hide all reply forms
+    document.querySelectorAll('.admin-reply-form').forEach(form => {
+        form.style.display = 'none';
+    });
+    
+    // Show the selected reply form
+    const replyForm = document.getElementById(`reply-form-${commentId}`);
+    if (replyForm) {
+        replyForm.style.display = 'block';
+        // Focus on the textarea
+        const textarea = document.getElementById(`reply-input-${commentId}`);
+        if (textarea) {
+            textarea.focus();
+        }
+    }
+}
+
+function cancelReply(commentId) {
+    const replyForm = document.getElementById(`reply-form-${commentId}`);
+    if (replyForm) {
+        replyForm.style.display = 'none';
+        // Clear the textarea
+        const textarea = document.getElementById(`reply-input-${commentId}`);
+        if (textarea) {
+            textarea.value = '';
+        }
+    }
+}
+
+function submitReply(commentId) {
+    const replyInput = document.getElementById(`reply-input-${commentId}`);
+    
+    if (!replyInput || !currentPaperId) return;
+    
+    const reply = replyInput.value.trim();
+    
+    // Validation
+    if (!reply) {
+        showNotification('Please enter a reply', 'warning');
+        replyInput.focus();
+        return;
+    }
+    
+    if (reply.length < 3) {
+        showNotification('Reply must be at least 3 characters', 'warning');
+        replyInput.focus();
+        return;
+    }
+    
+    // Submit reply as admin
+    fetch('/api/comments', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            paper_id: currentPaperId,
+            user_name: 'Administrator',
+            user_email: 'admin@nesa.gov.rw',
+            comment: reply,
+            is_admin_comment: true,
+            parent_id: commentId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Clear form and hide it
+            cancelReply(commentId);
+            
+            // Reload comments
+            loadAdminComments(currentPaperId);
+            
+            showNotification('Reply posted successfully!', 'success');
+        } else {
+            throw new Error(data.message || 'Failed to post reply');
+        }
+    })
+    .catch(error => {
+        console.error('Error posting reply:', error);
+        showNotification('Failed to post reply', 'error');
+    });
+}
+
+function deleteComment(commentId) {
+    if (!confirm('Are you sure you want to delete this comment? This action cannot be undone.')) {
+        return;
+    }
+    
+    fetch(`/api/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Reload comments
+            loadAdminComments(currentPaperId);
+            
+            showNotification('Comment deleted successfully', 'success');
+        } else {
+            throw new Error(data.message || 'Failed to delete comment');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting comment:', error);
+        showNotification('Failed to delete comment', 'error');
+    });
+}
+
 // Make functions globally available for inline onclick handlers
 window.editPaper = editPaper;
 window.viewPaper = viewPaper;
@@ -1163,3 +1324,7 @@ window.displayAdminComments = displayAdminComments;
 window.displayAdminCommentError = displayAdminCommentError;
 window.formatAdminCommentTime = formatAdminCommentTime;
 window.escapeAdminHtml = escapeAdminHtml;
+window.showReplyForm = showReplyForm;
+window.cancelReply = cancelReply;
+window.submitReply = submitReply;
+window.deleteComment = deleteComment;

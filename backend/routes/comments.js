@@ -7,17 +7,39 @@ router.get('/paper/:paperId', async (req, res) => {
     try {
         const paperId = req.params.paperId;
         
+        // Get all comments for this paper
         const [comments] = await db.query(
-            `SELECT id, user_name, user_email, comment, created_at, updated_at, is_admin_comment 
+            `SELECT id, user_name, user_email, comment, created_at, updated_at, is_admin_comment, parent_id 
              FROM comments 
              WHERE paper_id = ? 
-             ORDER BY created_at DESC`,
+             ORDER BY created_at ASC`,
             [paperId]
         );
         
+        // Organize comments into threads (replies nested under parent comments)
+        const organizedComments = [];
+        const commentsMap = {};
+        
+        // First pass: create a map of all comments
+        comments.forEach(comment => {
+            comment.replies = [];
+            commentsMap[comment.id] = comment;
+        });
+        
+        // Second pass: organize replies under parent comments
+        comments.forEach(comment => {
+            if (comment.parent_id === null) {
+                organizedComments.push(comment);
+            } else {
+                if (commentsMap[comment.parent_id]) {
+                    commentsMap[comment.parent_id].replies.push(comment);
+                }
+            }
+        });
+        
         res.json({
             success: true,
-            data: comments
+            data: organizedComments
         });
         
     } catch (error) {
@@ -33,7 +55,7 @@ router.get('/paper/:paperId', async (req, res) => {
 // POST a new comment
 router.post('/', async (req, res) => {
     try {
-        const { paper_id, user_name, user_email, comment, is_admin_comment = false } = req.body;
+        const { paper_id, user_name, user_email, comment, is_admin_comment = false, parent_id = null } = req.body;
         
         // Validate required fields
         if (!paper_id || !user_name || !comment) {
@@ -52,14 +74,14 @@ router.post('/', async (req, res) => {
         }
         
         const [result] = await db.query(
-            `INSERT INTO comments (paper_id, user_name, user_email, comment, is_admin_comment) 
-             VALUES (?, ?, ?, ?, ?)`,
-            [paper_id, user_name, user_email, comment, is_admin_comment]
+            `INSERT INTO comments (paper_id, user_name, user_email, comment, is_admin_comment, parent_id) 
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [paper_id, user_name, user_email, comment, is_admin_comment, parent_id]
         );
         
         // Return the created comment
         const [newComment] = await db.query(
-            `SELECT id, user_name, user_email, comment, created_at, updated_at, is_admin_comment 
+            `SELECT id, user_name, user_email, comment, created_at, updated_at, is_admin_comment, parent_id 
              FROM comments 
              WHERE id = ?`,
             [result.insertId]
