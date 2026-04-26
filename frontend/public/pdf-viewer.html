@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PDF Viewer - NESA Exam Papers</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #ffffff;
+            overflow: hidden;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .viewer-container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .viewer-header {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .viewer-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #ffffff;
+            flex: 1;
+        }
+
+        .viewer-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            color: #ffffff;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+
+        .pdf-canvas {
+            flex: 1;
+            background: #2a2a2a;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #pdfCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #3b82f6;
+            border-top: 4px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(239, 68, 68, 0.95);
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            z-index: 1000;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .error-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #ef4444;
+        }
+
+        .error-message {
+            font-size: 14px;
+            color: #b3b9c4;
+            margin-bottom: 20px;
+        }
+
+        .retry-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .retry-btn:hover {
+            background: #2563eb;
+        }
+
+        .page-info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #ffffff;
+            z-index: 50;
+        }
+
+        .zoom-controls {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 50;
+        }
+
+        .zoom-btn {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #ffffff;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .zoom-btn:hover {
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .viewer-header {
+                padding: 10px 15px;
+            }
+
+            .viewer-title {
+                font-size: 14px;
+            }
+
+            .control-btn {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+
+            .zoom-controls {
+                top: 60px;
+                right: 10px;
+            }
+
+            .zoom-btn {
+                width: 35px;
+                height: 35px;
+                font-size: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .viewer-controls {
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+
+            .control-btn {
+                font-size: 11px;
+                padding: 5px 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="viewer-container">
+        <!-- Header with controls -->
+        <div class="viewer-header">
+            <div class="viewer-title" id="documentTitle">PDF Viewer</div>
+            <div class="viewer-controls">
+                <button class="control-btn" onclick="downloadPDF()" title="Download PDF">
+                    <i>⬇</i> Download
+                </button>
+                <button class="control-btn" onclick="sharePDF()" title="Share PDF">
+                    <i>⬆</i> Share
+                </button>
+                <button class="control-btn" onclick="toggleFullscreen()" title="Toggle Fullscreen">
+                    <i>⛶</i> Fullscreen
+                </button>
+                <button class="control-btn" onclick="closeViewer()" title="Close">
+                    <i>✕</i> Close
+                </button>
+            </div>
+        </div>
+
+        <!-- PDF Canvas -->
+        <div class="pdf-canvas">
+            <canvas id="pdfCanvas"></canvas>
+        </div>
+
+        <!-- Zoom Controls -->
+        <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoomIn()" title="Zoom In">
+                <i>+</i>
+            </button>
+            <button class="zoom-btn" onclick="zoomOut()" title="Zoom Out">
+                <i>−</i>
+            </button>
+            <button class="zoom-btn" onclick="resetZoom()" title="Reset Zoom">
+                <i>⟲</i>
+            </button>
+        </div>
+
+        <!-- Page Info -->
+        <div class="page-info" id="pageInfo">
+            Page <span id="currentPage">1</span> of <span id="totalPages">1</span>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+            <div class="loading-spinner"></div>
+            <div style="margin-top: 20px; color: #ffffff; font-size: 16px;">Loading PDF...</div>
+        </div>
+
+        <!-- Error Container -->
+        <div class="error-container" id="errorContainer" style="display: none;">
+            <div class="error-title">Failed to Load PDF</div>
+            <div class="error-message" id="errorMessage">Unable to load the PDF document. Please try again.</div>
+            <button class="retry-btn" onclick="retryLoad()">Retry</button>
+        </div>
+    </div>
+
+    <!-- PDF.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    
+    <script>
+        // Global variables
+        let pdfDoc = null;
+        let currentPage = 1;
+        let totalPages = 1;
+        let currentScale = 1.5;
+        let isFullscreen = false;
+        let pdfUrl = '';
+        let pdfFileName = '';
+
+        // Initialize viewer
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeViewer();
+        });
+
+        // Handle keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            handleKeyboardShortcuts(e);
+        });
+
+        // Handle resize
+        window.addEventListener('resize', function() {
+            if (pdfDoc) {
+                renderPage(currentPage);
+            }
+        });
+
+        function initializeViewer() {
+            // Get PDF URL from query parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            pdfUrl = urlParams.get('url') || '';
+            pdfFileName = urlParams.get('filename') || 'document.pdf';
+
+            if (!pdfUrl) {
+                showError('No PDF URL provided');
+                return;
+            }
+
+            // Update title
+            document.getElementById('documentTitle').textContent = pdfFileName.replace('.pdf', '');
+
+            loadPDF(pdfUrl);
+        }
+
+        async function loadPDF(url) {
+            showLoading(true);
+
+            try {
+                // Load PDF from URL
+                const loadingTask = pdfjsLib.getDocument(url);
+                const pdf = await loadingTask.promise;
+
+                pdfDoc = pdf;
+                totalPages = pdf.numPages;
+                
+                // Update page info
+                updatePageInfo();
+                
+                // Render first page
+                renderPage(1);
+                
+                showLoading(false);
+                
+                // Track view for analytics
+                trackPDFView(url);
+
+            } catch (error) {
+                console.error('Error loading PDF:', error);
+                showError('Failed to load PDF: ' + error.message);
+                showLoading(false);
+            }
+        }
+
+        function renderPage(pageNum) {
+            if (!pdfDoc) return;
+
+            showLoading(true);
+
+            pdfDoc.getPage(pageNum).then(function(page) {
+                const canvas = document.getElementById('pdfCanvas');
+                const ctx = canvas.getContext('2d');
+
+                // Calculate scale to fit screen
+                const containerWidth = canvas.parentElement.clientWidth;
+                const containerHeight = canvas.parentElement.clientHeight;
+                
+                const viewport = page.getViewport({ 
+                    scale: currentScale,
+                    rotation: 0
+                });
+
+                // Set canvas dimensions
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                // Render PDF page
+                const renderContext = {
+                    canvasContext: ctx,
+                    viewport: viewport
+                };
+
+                page.render(renderContext).promise.then(function() {
+                    currentPage = pageNum;
+                    updatePageInfo();
+                    showLoading(false);
+                }).catch(function(error) {
+                    console.error('Error rendering page:', error);
+                    showError('Failed to render page: ' + error.message);
+                    showLoading(false);
+                });
+            }).catch(function(error) {
+                console.error('Error getting page:', error);
+                showError('Failed to get page: ' + error.message);
+                showLoading(false);
+            });
+        }
+
+        function updatePageInfo() {
+            document.getElementById('currentPage').textContent = currentPage;
+            document.getElementById('totalPages').textContent = totalPages;
+        }
+
+        function showLoading(show) {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.style.display = show ? 'flex' : 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorContainer').style.display = 'block';
+            showLoading(false);
+        }
+
+        function hideError() {
+            document.getElementById('errorContainer').style.display = 'none';
+        }
+
+        // Zoom functions
+        function zoomIn() {
+            currentScale = Math.min(currentScale + 0.25, 3);
+            if (pdfDoc) renderPage(currentPage);
+        }
+
+        function zoomOut() {
+            currentScale = Math.max(currentScale - 0.25, 0.5);
+            if (pdfDoc) renderPage(currentPage);
+        }
+
+        function resetZoom() {
+            currentScale = 1.5;
+            if (pdfDoc) renderPage(currentPage);
+        }
+
+        // Navigation functions
+        function nextPage() {
+            if (currentPage < totalPages) {
+                renderPage(currentPage + 1);
+            }
+        }
+
+        function previousPage() {
+            if (currentPage > 1) {
+                renderPage(currentPage - 1);
+            }
+        }
+
+        // Control functions
+        function downloadPDF() {
+            if (pdfUrl) {
+                const link = document.createElement('a');
+                link.href = pdfUrl;
+                link.download = pdfFileName;
+                link.target = '_blank';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Track download
+                trackPDFDownload(pdfUrl);
+            }
+        }
+
+        function sharePDF() {
+            if (navigator.share && pdfUrl) {
+                navigator.share({
+                    title: pdfFileName.replace('.pdf', ''),
+                    text: 'Check out this exam paper from NESA Portal',
+                    url: window.location.origin + '/pdf-viewer.html?url=' + encodeURIComponent(pdfUrl) + '&filename=' + encodeURIComponent(pdfFileName)
+                }).catch(err => console.error('Share failed:', err));
+            } else {
+                // Fallback: copy link to clipboard
+                const shareUrl = window.location.origin + '/pdf-viewer.html?url=' + encodeURIComponent(pdfUrl) + '&filename=' + encodeURIComponent(pdfFileName);
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    alert('Share link copied to clipboard!');
+                }).catch(err => console.error('Copy failed:', err));
+            }
+        }
+
+        function toggleFullscreen() {
+            const container = document.querySelector('.viewer-container');
+            
+            if (!isFullscreen) {
+                if (container.requestFullscreen) {
+                    container.requestFullscreen();
+                } else if (container.webkitRequestFullscreen) {
+                    container.webkitRequestFullscreen();
+                } else if (container.msRequestFullscreen) {
+                    container.msRequestFullscreen();
+                }
+                isFullscreen = true;
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+                isFullscreen = false;
+            }
+        }
+
+        function closeViewer() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '/public/index.html';
+            }
+        }
+
+        function retryLoad() {
+            hideError();
+            if (pdfUrl) {
+                loadPDF(pdfUrl);
+            }
+        }
+
+        // Keyboard shortcuts
+        function handleKeyboardShortcuts(e) {
+            switch(e.key) {
+                case 'ArrowLeft':
+                e.preventDefault();
+                    previousPage();
+                    break;
+                case 'ArrowRight':
+                e.preventDefault();
+                    nextPage();
+                    break;
+                case '+':
+                case '=':
+                    e.preventDefault();
+                    zoomIn();
+                    break;
+                case '-':
+                case '_':
+                    e.preventDefault();
+                    zoomOut();
+                    break;
+                case '0':
+                    e.preventDefault();
+                    resetZoom();
+                    break;
+                case 'f':
+                case 'F':
+                    e.preventDefault();
+                    toggleFullscreen();
+                    break;
+                case 'Escape':
+                    e.preventDefault();
+                    closeViewer();
+                    break;
+            }
+        }
+
+        // Analytics tracking
+        async function trackPDFView(url) {
+            try {
+                // Extract paper ID from URL for tracking
+                const paperId = url.match(/\/uploads\/(\d+)/)?.[1];
+                if (paperId) {
+                    await fetch('/api/analytics/track-view', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paperId: parseInt(paperId) }),
+                        credentials: 'include'
+                    });
+                }
+            } catch (error) {
+                console.error('Error tracking view:', error);
+            }
+        }
+
+        async function trackPDFDownload(url) {
+            try {
+                const paperId = url.match(/\/uploads\/(\d+)/)?.[1];
+                if (paperId) {
+                    await fetch('/api/analytics/track-download', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paperId: parseInt(paperId) }),
+                        credentials: 'include'
+                    });
+                }
+            } catch (error) {
+                console.error('Error tracking download:', error);
+            }
+        }
+
+        // Touch gestures for mobile
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        document.addEventListener('touchstart', function(e) {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+
+        document.addEventListener('touchend', function(e) {
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+            
+            // Horizontal swipe - page navigation
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                if (deltaX > 50) {
+                    nextPage();
+                } else if (deltaX < -50) {
+                    previousPage();
+                }
+            }
+        });
+
+        // Make pdfjsLib available globally
+        window.pdfjsLib = pdfjsLib;
+    </script>
+</body>
+</html>
