@@ -10,7 +10,7 @@ const config = {
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'exam_system'
 };
-
+    
 console.log('Configuration:');
 console.log(`Host: ${config.host}`);
 console.log(`User: ${config.user}`);
