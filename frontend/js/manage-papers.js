@@ -2,7 +2,7 @@
 
 const API_BASE = "https://exam-papers-system.onrender.com";
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     console.log('Dashboard page loaded');
     loadDashboardData();
     setupEventListeners();
@@ -10,8 +10,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function setupEventListeners() {
     const logoutBtn = document.getElementById('logoutBtn');
+
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', function(e) {
+        logoutBtn.addEventListener('click', function (e) {
             e.preventDefault();
             logout();
         });
@@ -20,7 +21,7 @@ function setupEventListeners() {
 
 async function loadDashboardData() {
     console.log('Loading dashboard data...');
-    
+
     try {
         showLoadingStates();
 
@@ -37,7 +38,7 @@ async function loadDashboardData() {
                 window.location.href = '/admin/login.html';
                 return;
             }
-            throw new Error(`HTTP error! status: ${papersResponse.status}`);
+            throw new Error(`Server error: ${papersResponse.status}`);
         }
 
         const papersData = await papersResponse.json();
@@ -54,33 +55,55 @@ async function loadDashboardData() {
         await loadAnalyticsSummary();
 
     } catch (error) {
-        console.error('Error loading dashboard:', error);
-        showNotification('Failed to load dashboard data: ' + error.message, 'error');
+        console.error('Dashboard error:', error);
+        showNotification('Failed to load dashboard: ' + error.message, 'error');
         showErrorStates();
     }
 }
 
 function showLoadingStates() {
     const statsContainer = document.getElementById('statsContainer');
+
     if (statsContainer) {
-        statsContainer.innerHTML = `<div class="stat-card loading"><p>Loading...</p></div>`;
+        statsContainer.innerHTML = `
+            <div class="stat-card">Loading...</div>
+            <div class="stat-card">Loading...</div>
+            <div class="stat-card">Loading...</div>
+            <div class="stat-card">Loading...</div>
+        `;
     }
 }
 
 function showErrorStates() {
     const statsContainer = document.getElementById('statsContainer');
+
     if (statsContainer) {
-        statsContainer.innerHTML = `<div class="stat-card error"><p>Failed to load</p></div>`;
+        statsContainer.innerHTML = `
+            <div class="stat-card error">
+                ❌ Failed to load data
+                <button onclick="loadDashboardData()">Retry</button>
+            </div>
+        `;
     }
 }
 
 function updateStats(papers) {
-    const totalPapers = papers.length;
-    const activePapers = papers.filter(p => p.status === 'active').length;
+    const container = document.getElementById('statsContainer');
+    if (!container) return;
 
-    document.getElementById('statsContainer').innerHTML = `
-        <div class="stat-card"><h3>Total Papers</h3><div>${totalPapers}</div></div>
-        <div class="stat-card"><h3>Active Papers</h3><div>${activePapers}</div></div>
+    const total = papers.length;
+    const active = papers.filter(p => p.status === 'active').length;
+
+    container.innerHTML = `
+        <div class="stat-card">
+            <h3>Total Papers</h3>
+            <div class="value">${total}</div>
+        </div>
+
+        <div class="stat-card">
+            <h3>Active Papers</h3>
+            <div class="value">${active}</div>
+        </div>
     `;
 }
 
@@ -88,13 +111,18 @@ function displayRecentPapers(papers) {
     const tbody = document.getElementById('recentPapers');
     if (!tbody) return;
 
+    if (!papers.length) {
+        tbody.innerHTML = `<tr><td colspan="5">No papers found</td></tr>`;
+        return;
+    }
+
     tbody.innerHTML = papers.map(p => `
         <tr>
-            <td>${p.id}</td>
-            <td>${p.year}</td>
-            <td>${p.subject}</td>
-            <td>${p.level}</td>
-            <td>${p.status}</td>
+            <td>${p.id || '-'}</td>
+            <td>${p.year || '-'}</td>
+            <td>${p.subject || '-'}</td>
+            <td>${p.level || '-'}</td>
+            <td>${p.status || '-'}</td>
         </tr>
     `).join('');
 }
@@ -105,31 +133,40 @@ async function loadAnalyticsSummary() {
             credentials: 'include'
         });
 
-        const data = await response.json();
+        if (!response.ok) return;
 
+        const data = await response.json();
         if (!data.success) return;
 
         updateVisitorStats(data.data);
 
     } catch (error) {
-        console.error(error);
+        console.error('Analytics error:', error);
     }
 }
 
 function updateVisitorStats(analytics) {
-    document.getElementById('totalVisits').textContent =
-        analytics?.visitors?.total || 0;
+    const el = document.getElementById('totalVisits');
+    if (!el) return;
+
+    el.textContent = analytics?.visitors?.total || 0;
 }
 
 async function logout() {
-    await fetch(`${API_BASE}/api/auth/logout`, {
-        method: 'POST',
-        credentials: 'include'
-    });
+    try {
+        await fetch(`${API_BASE}/api/auth/logout`, {
+            method: 'POST',
+            credentials: 'include'
+        });
 
-    window.location.href = '/admin/login.html';
+        window.location.href = '/admin/login.html';
+
+    } catch (error) {
+        console.error('Logout error:', error);
+        window.location.href = '/admin/login.html';
+    }
 }
 
-function showNotification(message, type) {
-    console.log(type + ': ' + message);
+function showNotification(message, type = 'info') {
+    console.log(`[${type}] ${message}`);
 }
