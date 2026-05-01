@@ -2,10 +2,10 @@ const mysql = require('mysql2');
 
 // Create connection pool
 const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'exam_system',
+    host: process.env.DB_HOST,        // ❌ removed localhost fallback
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
@@ -15,37 +15,32 @@ const pool = mysql.createPool({
 
 const promisePool = pool.promise();
 
-// Test database connection
+// Test database connection (SAFE - won't crash app)
 async function testDatabaseConnection() {
     try {
         const connection = await promisePool.getConnection();
         console.log('✅ Database connected successfully');
-        
-        // Test query
+
         await connection.query('SELECT 1');
         console.log('✅ Database query test passed');
-        
+
         connection.release();
-        return true;
     } catch (err) {
         console.error('❌ Database connection failed:', err.message);
-        console.error('\nTroubleshooting:');
-        console.error('1. Make sure MySQL is running in XAMPP');
-        console.error('2. Check if database "exam_system" exists');
-        console.error('3. Verify credentials in .env file');
-        console.error('4. Try: mysql -u root -p -e "CREATE DATABASE exam_system"\n');
-        return false;
+
+        console.log('⚠️ Server will continue running without DB connection');
     }
 }
 
-// Run test on startup
+// Run test (non-blocking)
 testDatabaseConnection();
 
-// Handle connection errors
+// Handle connection errors safely
 pool.on('error', (err) => {
-    console.error('Database pool error:', err);
+    console.error('❌ Database pool error:', err.message);
+
     if (err.code === 'PROTOCOL_CONNECTION_LOST') {
-        console.error('Database connection lost. Reconnecting...');
+        console.error('⚠️ Database connection lost');
     }
 });
 
