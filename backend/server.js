@@ -17,8 +17,24 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
+// CORS configuration for multiple origins
+const allowedOrigins = [
+    'http://localhost:5000',
+    'http://localhost:3000',
+    'https://exam-papers-system.onrender.com',
+    'https://exam-papers-system-1.onrender.com',
+    'https://nesapastnationalexam.netlify.app',
+    'https://nesapastnationalexam.netlify.app/'
+];
+
 app.use(cors({
-    origin: 'http://localhost:5000',
+    origin: function(origin, callback) {
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept']

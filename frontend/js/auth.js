@@ -1,10 +1,9 @@
 // Authentication handling
-const API_BASE = 'https://exam-papers-system.onrender.com';
 
 const Auth = {
     async login(username, password) {
         try {
-            const response = await fetch(`${API_BASE}/api/auth/login`, {
+            const response = await fetch(getApiUrl('/api/auth/login'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -14,7 +13,7 @@ const Auth = {
             });
 
             const data = await response.json();
-            
+
             if (!response.ok) {
                 throw new Error(data.message || 'Login failed');
             }
@@ -28,11 +27,11 @@ const Auth = {
 
     async logout() {
         try {
-            await fetch(`${API_BASE}/api/auth/logout`, {
+            await fetch(getApiUrl('/api/auth/logout'), {
                 method: 'POST',
                 credentials: 'include'
             });
-            
+
             localStorage.clear();
             sessionStorage.clear();
             window.location.href = '/admin/login.html';
@@ -44,13 +43,13 @@ const Auth = {
 
     async verifyToken() {
         try {
-            const response = await fetch(`${API_BASE}/api/auth/verify`, {
+            const response = await fetch(getApiUrl('/api/auth/verify'), {
                 credentials: 'include',
                 headers: {
                     'Cache-Control': 'no-cache'
                 }
             });
-            
+
             const data = await response.json();
             return data.valid === true;
         } catch (error) {

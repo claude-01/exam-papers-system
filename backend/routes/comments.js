@@ -55,13 +55,25 @@ router.get('/paper/:paperId', async (req, res) => {
 // POST a new comment
 router.post('/', async (req, res) => {
     try {
-        const { paper_id, user_name, user_email, comment, is_admin_comment = false, parent_id = null } = req.body;
+        console.log('POST /api/comments received');
+        console.log('Request body:', JSON.stringify(req.body));
+        
+        // Support both naming conventions (paperId/name or paper_id/user_name)
+        const paperId = req.body.paperId || req.body.paper_id;
+        const userName = req.body.name || req.body.user_name;
+        const userEmail = req.body.email || req.body.user_email;
+        const comment = req.body.comment;
+        const isAdminComment = req.body.is_admin_comment || false;
+        const parentId = req.body.parent_id || null;
+        
+        console.log('Parsed values:', { paperId, userName, userEmail, comment });
         
         // Validate required fields
-        if (!paper_id || !user_name || !comment) {
+        if (!paperId || !userName || !comment) {
+            console.log('Validation failed - Missing fields');
             return res.status(400).json({
                 success: false,
-                message: 'Paper ID, user name, and comment are required'
+                message: 'Paper ID, name, and comment are required'
             });
         }
         
@@ -76,7 +88,7 @@ router.post('/', async (req, res) => {
         const [result] = await db.query(
             `INSERT INTO comments (paper_id, user_name, user_email, comment, is_admin_comment, parent_id) 
              VALUES (?, ?, ?, ?, ?, ?)`,
-            [paper_id, user_name, user_email, comment, is_admin_comment, parent_id]
+            [paperId, userName, userEmail, comment, isAdminComment, parentId]
         );
         
         // Return the created comment
@@ -89,7 +101,7 @@ router.post('/', async (req, res) => {
         
         res.status(201).json({
             success: true,
-            message: 'Comment added successfully',
+            message: 'Comment submitted successfully!',
             data: newComment[0]
         });
         
@@ -155,39 +167,7 @@ router.put('/:id', async (req, res) => {
     }
 });
 
-// DELETE a comment
-router.delete('/:id', async (req, res) => {
-    try {
-        const commentId = req.params.id;
-        
-        const [result] = await db.query(
-            'DELETE FROM comments WHERE id = ?',
-            [commentId]
-        );
-        
-        if (result.affectedRows === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Comment not found'
-            });
-        }
-        
-        res.json({
-            success: true,
-            message: 'Comment deleted successfully'
-        });
-        
-    } catch (error) {
-        console.error('Error deleting comment:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to delete comment',
-            error: error.message
-        });
-    }
-});
-
-// GET comment statistics for admin dashboard
+// GET comment statistics for admin dashboard (MUST be before /:id route)
 router.get('/stats/summary', async (req, res) => {
     try {
         const [totalComments] = await db.query('SELECT COUNT(*) as total FROM comments');
@@ -221,6 +201,38 @@ router.get('/stats/summary', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to fetch comment statistics',
+            error: error.message
+        });
+    }
+});
+
+// DELETE a comment
+router.delete('/:id', async (req, res) => {
+    try {
+        const commentId = req.params.id;
+        
+        const [result] = await db.query(
+            'DELETE FROM comments WHERE id = ?',
+            [commentId]
+        );
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Comment not found'
+            });
+        }
+        
+        res.json({
+            success: true,
+            message: 'Comment deleted successfully'
+        });
+        
+    } catch (error) {
+        console.error('Error deleting comment:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to delete comment',
             error: error.message
         });
     }

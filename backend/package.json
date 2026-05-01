@@ -6,13 +6,21 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "migrate": "node create-comments-table.js",
+    "init-db": "node init-db.js",
+    "migrate": "node init-db.js",
     "test": "node test-db.js",
     "build": "echo 'No build step required for Node.js'",
     "vercel-build": "echo 'Vercel build complete'",
     "heroku-postbuild": "echo 'Heroku post-build complete'"
   },
-  "keywords": ["exam", "papers", "management", "education", "comments", "bookmarks"],
+  "keywords": [
+    "exam",
+    "papers",
+    "management",
+    "education",
+    "comments",
+    "bookmarks"
+  ],
   "author": "claude-01",
   "license": "MIT",
   "type": "commonjs",
@@ -26,7 +34,6 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.5.0",
     "multer": "^2.1.1",
     "mysql2": "^3.22.2",
     "nodemon": "^3.1.14"

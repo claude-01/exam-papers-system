@@ -1,47 +1,80 @@
-const mysql = require('mysql2');
+const { Pool } = require('pg');
+require('dotenv').config();
 
-// Create connection pool
-const pool = mysql.createPool({
-    host: process.env.DB_HOST,        // ❌ removed localhost fallback
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
-    enableKeepAlive: true,
-    keepAliveInitialDelay: 0
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+    throw new Error('DATABASE_URL is required for PostgreSQL connection');
+}
+if (/infinityfree\.com|sql311\.|sql312\./i.test(connectionString)) {
+    throw new Error('Legacy InfinityFree DATABASE_URL is not supported. Set DATABASE_URL to Render PostgreSQL only.');
+}
+if (process.env.DB_HOST || process.env.DB_USER || process.env.DB_PASSWORD || process.env.DB_NAME) {
+    console.warn('⚠️ Deprecated MySQL env vars detected. Remove DB_HOST, DB_USER, DB_PASSWORD, DB_NAME and use DATABASE_URL only.');
+}
+if (process.env.PG_CONNECTION_STRING) {
+    console.warn('⚠️ PG_CONNECTION_STRING is ignored. Use DATABASE_URL only.');
+}
+console.log('🔐 DATABASE_URL loaded:', connectionString.replace(/:[^:@]+@/, ':******@'));
+
+const pool = new Pool({
+    connectionString,
+    ssl: process.env.NODE_ENV === 'production'
+        ? { rejectUnauthorized: false }
+        : false,
+    max: 10
 });
 
-const promisePool = pool.promise();
+pool.on('error', (err) => {
+    console.error('Unexpected PostgreSQL idle client error:', err);
+});
 
-// Test database connection (SAFE - won't crash app)
+function convertPlaceholders(sql) {
+    let index = 0;
+    return sql.replace(/\?/g, () => `$${++index}`);
+}
+
 async function testDatabaseConnection() {
     try {
-        const connection = await promisePool.getConnection();
-        console.log('✅ Database connected successfully');
-
-        await connection.query('SELECT 1');
-        console.log('✅ Database query test passed');
-
-        connection.release();
+        const client = await pool.connect();
+        await client.query('SELECT 1');
+        client.release();
+        console.log('✅ PostgreSQL database connected successfully');
+        return true;
     } catch (err) {
         console.error('❌ Database connection failed:', err.message);
-
-        console.log('⚠️ Server will continue running without DB connection');
+        return false;
     }
 }
 
-// Run test (non-blocking)
-testDatabaseConnection();
+async function query(sql, params = []) {
+    try {
+        const convertedSql = convertPlaceholders(sql);
+        const result = await pool.query(convertedSql, params);
 
-// Handle connection errors safely
-pool.on('error', (err) => {
-    console.error('❌ Database pool error:', err.message);
+        if (result.command === 'SELECT') {
+            return [result.rows, result];
+        }
 
-    if (err.code === 'PROTOCOL_CONNECTION_LOST') {
-        console.error('⚠️ Database connection lost');
+        const meta = {
+            rowCount: result.rowCount,
+            affectedRows: result.rowCount,
+            insertId: result.rows && result.rows[0] ? result.rows[0].id : null
+        };
+
+        return [meta, result];
+    } catch (err) {
+        console.error('Database query error:', err);
+        throw err;
     }
+}
+
+// Test on startup (async, don't block server startup)
+testDatabaseConnection().catch(err => {
+    console.error('⚠️  Database connection test failed on startup:', err.message);
+    console.log('Server will continue, but database operations may fail');
 });
 
-module.exports = promisePool;
+module.exports = {
+    pool,
+    query
+};

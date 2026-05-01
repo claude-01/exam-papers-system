@@ -139,6 +139,32 @@ function displayPapers() {
                             <button class="btn btn-outline btn-sm action-btn bookmark ${isBookmarked ? 'active' : ''}" onclick="toggleBookmark('${paper.id}')" title="${isBookmarked ? 'Remove bookmark' : 'Add bookmark'}">
                                 <i class="${isBookmarked ? 'fas' : 'far'} fa-bookmark"></i>
                             </button>
+                            <button class="btn btn-outline btn-sm action-btn comment" onclick="togglePaperComments('${paper.id}', '${paper.subject}')" title="View/Add comments">
+                                <i class="fas fa-comment"></i> Comments
+                            </button>
+                        </div>
+                        <div class="paper-comments" id="comments-${paper.id}" style="display: none;">
+                            <div class="comments-list" id="comments-list-${paper.id}">
+                                <div class="comments-loading">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading comments...
+                                </div>
+                            </div>
+                            <div class="add-comment-section">
+                                <form class="comment-form" onsubmit="submitPaperComment(event, '${paper.id}')">
+                                    <div class="form-group">
+                                        <input type="text" placeholder="Your name *" class="comment-name" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <input type="email" placeholder="Your email (optional)" class="comment-email">
+                                    </div>
+                                    <div class="form-group">
+                                        <textarea placeholder="Add your comment..." class="comment-text" rows="3" required></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-paper-plane"></i> Post Comment
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -354,7 +380,7 @@ function showBookmarks() {
 
 async function downloadPaper(id, fileUrl) {
     try {
-        await fetch('/api/analytics/track-download', {
+        await fetch(getApiUrl('/api/analytics/track-download'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ paperId: id })
@@ -489,7 +515,7 @@ async function trackPDFView(fileUrl) {
         // Extract paper ID from file URL for tracking
         const paperId = fileUrl.match(/\/uploads\/(\d+)/)?.[1];
         if (paperId) {
-            await fetch('/api/analytics/track-view', {
+            await fetch(getApiUrl('/api/analytics/track-view'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ paperId: parseInt(paperId) }),
@@ -571,7 +597,7 @@ async function handleStaffLogin(event) {
     errorDiv.style.display = 'none';
     
     try {
-        const response = await fetch('/api/auth/login', {
+        const response = await fetch(getApiUrl('/api/auth/login'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password }),
@@ -715,8 +741,22 @@ function openCommentModal(paperId, fileName) {
         return;
     }
     
+    // Update modal title
+    const modalTitle = modal.querySelector('.modal-header h2');
+    if (modalTitle) {
+        modalTitle.innerHTML = `<i class="fas fa-comments"></i> Comment on ${fileName}`;
+    }
+    
+    // Clear form
+    document.getElementById('modalCommentName').value = '';
+    document.getElementById('modalCommentEmail').value = '';
+    document.getElementById('modalCommentText').value = '';
+    
+    // Show modal
     modal.classList.add('active');
-    loadModalComments(paperId);
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    
     console.log('Comment modal opened successfully');
 }
 
@@ -923,7 +963,7 @@ function submitModalComment(event) {
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting...';
     
     // Submit comment
-    fetch('/api/comments', {
+    fetch(getApiUrl('/api/comments'), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -962,16 +1002,201 @@ function submitModalComment(event) {
     });
 }
 
+// ============== COMMENTS ==============
+
+async function openCommentModal(paperId, subject) {
+    let modal = document.getElementById('commentModal');
+    
+    if (!modal) {
+        // Create modal if it doesn't exist
+        modal = document.createElement('div');
+        modal.id = 'commentModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Add Comment</h2>
+                    <button class="modal-close" onclick="closeCommentModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p id="paperTitle" style="color: var(--text-secondary); margin-bottom: 1.5rem;"></p>
+                    <form id="commentForm" onsubmit="submitComment(event)">
+                        <div class="form-group">
+                            <label for="commentName">Name *</label>
+                            <input type="text" id="commentName" name="name" required placeholder="Your name">
+                        </div>
+                        <div class="form-group">
+                            <label for="commentEmail">Email (optional)</label>
+                            <input type="email" id="commentEmail" name="email" placeholder="your.email@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="commentText">Comment *</label>
+                            <textarea id="commentText" name="comment" rows="5" required placeholder="Share your thoughts about this paper..."></textarea>
+                        </div>
+                        <div class="form-group" style="display: none;">
+                            <input type="hidden" id="commentPaperId" name="paperId" value="">
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" onclick="closeCommentModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Submit Comment</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    // Set paper info
+    document.getElementById('paperTitle').textContent = 'Commenting on: ' + subject;
+    document.getElementById('commentPaperId').value = paperId;
+    document.getElementById('commentForm').reset();
+    
+    // Show modal
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeCommentModal() {
+    const modal = document.getElementById('commentModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+}
+
+async function submitComment(event) {
+    event.preventDefault();
+    
+    const paperId = document.getElementById('commentPaperId').value;
+    const name = document.getElementById('commentName').value;
+    const email = document.getElementById('commentEmail').value;
+    const comment = document.getElementById('commentText').value;
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    try {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+        
+        const response = await fetch(getApiUrl('/api/comments'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paperId, name, email, comment })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showNotification('Comment submitted successfully!', 'success');
+            closeCommentModal();
+        } else {
+            showNotification(data.message || 'Failed to submit comment', 'error');
+        }
+    } catch (error) {
+        console.error('Error submitting comment:', error);
+        showNotification('Error submitting comment', 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }
+}
+
 // ============== TRACK VISIT ==============
 
 async function trackVisit() {
     try {
-        await fetch('/api/analytics/track-visit', {
+        await fetch(getApiUrl('/api/analytics/track-visit'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
         console.error('Error tracking visit:', error);
+    }
+}
+
+// ============== PAPER COMMENTS ==============
+
+async function togglePaperComments(paperId, subject) {
+    const commentsSection = document.getElementById(`comments-${paperId}`);
+    if (commentsSection.style.display === 'none') {
+        commentsSection.style.display = 'block';
+        await loadPaperComments(paperId);
+    } else {
+        commentsSection.style.display = 'none';
+    }
+}
+
+async function loadPaperComments(paperId) {
+    try {
+        const response = await fetch(`/api/comments/paper/${paperId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            displayPaperComments(paperId, data.data || []);
+        } else {
+            displayPaperComments(paperId, []);
+        }
+    } catch (error) {
+        console.error('Error loading comments:', error);
+        const commentsList = document.getElementById(`comments-list-${paperId}`);
+        commentsList.innerHTML = '<div class="no-comments">No comments yet</div>';
+    }
+}
+
+function displayPaperComments(paperId, comments) {
+    const commentsList = document.getElementById(`comments-list-${paperId}`);
+    
+    if (!comments || comments.length === 0) {
+        commentsList.innerHTML = '<div class="no-comments">No comments yet. Be the first to comment!</div>';
+        return;
+    }
+    
+    commentsList.innerHTML = comments.map(comment => `
+        <div class="comment-item">
+            <div class="comment-header">
+                <strong class="comment-author">${escapeHtml(comment.user_name)}</strong>
+                <span class="comment-date">${new Date(comment.created_at).toLocaleDateString()}</span>
+            </div>
+            <p class="comment-text">${escapeHtml(comment.comment)}</p>
+        </div>
+    `).join('');
+}
+
+async function submitPaperComment(event, paperId) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const name = form.querySelector('.comment-name').value;
+    const email = form.querySelector('.comment-email').value;
+    const comment = form.querySelector('.comment-text').value;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    
+    try {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting...';
+        
+        const response = await fetch('/api/comments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paperId, name, email, comment })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showNotification('Comment posted successfully!', 'success');
+            form.reset();
+            await loadPaperComments(paperId);
+        } else {
+            showNotification(data.message || 'Failed to post comment', 'error');
+        }
+    } catch (error) {
+        console.error('Error submitting comment:', error);
+        showNotification('Error posting comment', 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Post Comment';
     }
 }
 
@@ -995,6 +1220,13 @@ window.closePDFViewer = closePDFViewer;
 window.downloadPDFFromViewer = downloadPDFFromViewer;
 window.sharePDFFromViewer = sharePDFFromViewer;
 window.sharePaper = sharePaper;
+window.openCommentModal = openCommentModal;
+window.closeCommentModal = closeCommentModal;
+window.submitComment = submitComment;
+window.togglePaperComments = togglePaperComments;
+window.loadPaperComments = loadPaperComments;
+window.displayPaperComments = displayPaperComments;
+window.submitPaperComment = submitPaperComment;
 window.closeShareModal = closeShareModal;
 window.shareViaWhatsApp = shareViaWhatsApp;
 window.shareViaEmail = shareViaEmail;

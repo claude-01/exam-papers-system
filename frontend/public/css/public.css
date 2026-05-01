@@ -2084,3 +2084,88 @@ margin-bottom: 15px;
         gap: 8px;
     }
 }
+/* Modal Footer */
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 20px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-secondary);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 28px;
+    cursor: pointer;
+    transition: var(--transition);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close:hover {
+    color: var(--danger);
+}
+
+/* Comment Button */
+.paper-actions .action-btn.comment {
+    border-color: var(--secondary);
+    color: var(--secondary);
+}
+
+.paper-actions .action-btn.comment:hover {
+    background: rgba(139, 92, 246, 0.1);
+    border-color: var(--secondary);
+}
+
+.paper-actions .action-btn.comment i {
+    color: var(--secondary);
+}
+
+/* Form Styling for Comment Modal */
+#commentForm .form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+#commentForm label {
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+#commentForm input,
+#commentForm textarea {
+    padding: 12px 15px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    transition: var(--transition);
+}
+
+#commentForm input::placeholder,
+#commentForm textarea::placeholder {
+    color: var(--text-muted);
+}
+
+#commentForm input:focus,
+#commentForm textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    background: var(--bg-secondary);
+}
+
+#commentForm textarea {
+    resize: vertical;
+    min-height: 120px;
+}

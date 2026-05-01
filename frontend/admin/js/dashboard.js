@@ -37,7 +37,7 @@ async function loadDashboardData() {
     
     try {
         // Fetch papers data
-        const papersResponse = await fetch('/api/papers/admin', {
+        const papersResponse = await fetch(getApiUrl('/api/papers/admin'), {
             method: 'GET',
             credentials: 'include',
             headers: {
@@ -58,7 +58,7 @@ async function loadDashboardData() {
         console.log('Papers API response:', papersData);
 
         // Fetch analytics data
-        const analyticsResponse = await fetch('/api/analytics', {
+        const analyticsResponse = await fetch(getApiUrl('/api/analytics'), {
             method: 'GET',
             credentials: 'include',
             headers: {

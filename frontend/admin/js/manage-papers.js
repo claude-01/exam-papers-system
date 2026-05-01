@@ -186,7 +186,7 @@ async function loadPapers() {
     showLoading();
 
     try {
-        const response = await fetch('/api/papers/admin', {
+        const response = await fetch(getApiUrl('/api/papers/admin'), {
             credentials: 'include',
             headers: {
                 'Cache-Control': 'no-cache'
@@ -591,7 +591,7 @@ async function trackDownload(fileUrl) {
         // Extract paper ID from file URL for tracking
         const paperId = fileUrl.match(/\/uploads\/(\d+)/)?.[1];
         if (paperId) {
-            await fetch('/api/analytics/track-download', {
+            await fetch(getApiUrl('/api/analytics/track-download'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ paperId: parseInt(paperId) }),
@@ -1123,7 +1123,7 @@ function submitAdminComment() {
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting...';
     
     // Submit comment as admin
-    fetch('/api/comments', {
+    fetch(getApiUrl('/api/comments'), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -1243,7 +1243,7 @@ function submitReply(commentId) {
     }
     
     // Submit reply as admin
-    fetch('/api/comments', {
+    fetch(getApiUrl('/api/comments'), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
