@@ -116,7 +116,7 @@ router.post('/', authenticateToken, upload.single('file'), async (req, res) => {
         const file_path = 'uploads/' + req.file.filename;
 
         const [result] = await db.query(
-            'INSERT INTO exam_papers (year, subject, level, category, trade_or_combination, file_path, status) VALUES (?, ?, ?, ?, ?, ?, "active")',
+            `INSERT INTO exam_papers (year, subject, level, category, trade_or_combination, file_path, status) VALUES (?, ?, ?, ?, ?, ?, 'active') RETURNING id`,
             [year, subject, level, category, trade_or_combination || null, file_path]
         );
 

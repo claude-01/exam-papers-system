@@ -8,7 +8,7 @@ router.get('/', async (req, res) => {
         const [rows] = await db.query(
             `SELECT id, year, subject, level, category, trade_or_combination, file_path, created_at 
              FROM exam_papers 
-             WHERE status = "active" 
+             WHERE status = 'active' 
              ORDER BY year DESC, subject ASC`
         );
         
@@ -49,7 +49,7 @@ router.get('/category/:category', async (req, res) => {
         const [rows] = await db.query(
             `SELECT id, year, subject, level, category, trade_or_combination, file_path, created_at 
              FROM exam_papers 
-             WHERE status = "active" AND category = ?
+             WHERE status = 'active' AND category = ?
              ORDER BY year DESC, subject ASC`,
             [category]
         );
@@ -80,7 +80,7 @@ router.get('/level/:level', async (req, res) => {
         const [rows] = await db.query(
             `SELECT id, year, subject, level, category, trade_or_combination, file_path, created_at 
              FROM exam_papers 
-             WHERE status = "active" AND level = ?
+             WHERE status = 'active' AND level = ?
              ORDER BY year DESC, subject ASC`,
             [level]
         );

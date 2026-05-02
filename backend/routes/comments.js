@@ -87,7 +87,7 @@ router.post('/', async (req, res) => {
         
         const [result] = await db.query(
             `INSERT INTO comments (paper_id, user_name, user_email, comment, is_admin_comment, parent_id) 
-             VALUES (?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
             [paperId, userName, userEmail, comment, isAdminComment, parentId]
         );
         

@@ -7,6 +7,8 @@ require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
 const papersRoutes = require('./routes/papers');
+const publicPapersRoutes = require('./routes/public/papers');
+const adminPapersRoutes = require('./routes/admin/papers');
 const analyticsRoutes = require('./routes/analytics');
 const commentsRoutes = require('./routes/comments');
 const { authenticateToken, preventCache } = require('./middleware/auth');
@@ -55,12 +57,13 @@ app.use('/admin', express.static(path.join(__dirname, '../frontend/admin')));
 app.use('/public', express.static(path.join(__dirname, '../frontend/public')));
 
 // Apply cache prevention to admin routes
-app.use('/api/papers/admin', preventCache);
+app.use('/api/admin/papers', preventCache);
 app.use('/api/analytics', preventCache);
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/papers', papersRoutes);
+app.use('/api/papers', publicPapersRoutes);  // Public papers routes
+app.use('/api/admin/papers', adminPapersRoutes);  // Admin papers routes
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/comments', commentsRoutes);
 

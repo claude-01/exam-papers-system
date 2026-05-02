@@ -1,65 +1,52 @@
-const mysql = require('mysql2');
+const { Pool } = require('pg');
 require('dotenv').config();
+
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+    throw new Error('DATABASE_URL is required for PostgreSQL connection');
+}
 
 console.log('\n🔍 Testing Database Connection');
 console.log('================================');
-
-const config = {
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'exam_system'
-};
-    
 console.log('Configuration:');
-console.log(`Host: ${config.host}`);
-console.log(`User: ${config.user}`);
-console.log(`Password: ${config.password ? '******' : '(empty)'}`);
-console.log(`Database: ${config.database}`);
+console.log(`Connection: ${connectionString.replace(/:[^:@]+@/, ':******@')}`);
 console.log('================================');
 
-const connection = mysql.createConnection(config);
+const pool = new Pool({
+    connectionString,
+    ssl: process.env.NODE_ENV === 'production'
+        ? { rejectUnauthorized: false }
+        : false
+});
 
-connection.connect((err) => {
-    if (err) {
+(async () => {
+    try {
+        const client = await pool.connect();
+        console.log('✅ Connected successfully!');
+
+        const result = await client.query('SELECT 1 + 1 AS solution');
+        console.log('✅ Query test passed:', result.rows[0].solution);
+
+        const tables = await client.query(
+            `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name`
+        );
+
+        console.log(`\nTables in database (${tables.rows.length}):`);
+        if (tables.rows.length === 0) {
+            console.log('  No tables found. Run init-db.js to create the required tables.');
+        } else {
+            tables.rows.forEach(table => {
+                console.log(`  - ${table.table_name}`);
+            });
+        }
+
+        client.release();
+        console.log('\n✅ Test complete');
+    } catch (err) {
         console.error('❌ Connection failed!');
         console.error('Error:', err.message);
-        console.log('\nTroubleshooting:');
-        console.log('1. Make sure MySQL is running in XAMPP');
-        console.log('2. Open XAMPP Control Panel and start MySQL');
-        console.log('3. Check if password is correct (XAMPP default is empty)');
-        console.log('4. Try: mysql -u root -p');
-        console.log('5. Create database: CREATE DATABASE exam_system;');
         process.exit(1);
+    } finally {
+        await pool.end();
     }
-    
-    console.log('✅ Connected successfully!');
-    
-    // Test query
-    connection.query('SELECT 1 + 1 AS solution', (err, results) => {
-        if (err) {
-            console.error('❌ Query failed:', err.message);
-        } else {
-            console.log('✅ Query test passed:', results[0].solution);
-        }
-        
-        // Check if database exists
-        connection.query('SHOW TABLES', (err, tables) => {
-            if (err) {
-                console.error('❌ Failed to list tables:', err.message);
-            } else {
-                console.log(`\nTables in database (${tables.length}):`);
-                if (tables.length === 0) {
-                    console.log('  No tables found. Run setup-db.sql');
-                } else {
-                    tables.forEach(table => {
-                        console.log(`  - ${table.Tables_in_exam_system || Object.values(table)[0]}`);
-                    });
-                }
-            }
-            
-            connection.end();
-            console.log('\n✅ Test complete');
-        });
-    });
-});
+})();

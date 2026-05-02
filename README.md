@@ -39,7 +39,7 @@ A comprehensive web-based platform for managing and accessing NESA (National Exa
 backend/
 ├── server.js              # Main application server
 ├── config/
-│   └── database.js        # MySQL database configuration
+│   └── database.js        # PostgreSQL database configuration
 ├── routes/
 │   ├── papers.js          # Paper management endpoints
 │   ├── comments.js        # Comment system endpoints
@@ -78,7 +78,7 @@ frontend/
 
 ### Prerequisites
 - Node.js 14.0 or higher
-- MySQL 5.7 or higher
+- PostgreSQL 12 or higher
 - Modern web browser
 
 ### Installation
@@ -102,15 +102,10 @@ npm install
 
 3. **Database Setup**
 ```bash
-# Create database
-mysql -u root -p
-CREATE DATABASE exam_system;
-
-# Import the database schema
-mysql -u root -p exam_system < backend/exam_system.sql
-
-# Run comment table migration
-node backend/create-comments-table.js
+# Initialize the PostgreSQL schema from backend/init-db.js
+cd backend
+npm install
+npm run init-db
 ```
 
 4. **Environment Configuration**
@@ -118,10 +113,11 @@ node backend/create-comments-table.js
 # Copy environment template
 cp .env.example .env
 
-# Edit .env with your database credentials
+# Edit .env with your database credentials or use DATABASE_URL
 NODE_ENV=development
+DATABASE_URL=postgresql://username:password@localhost:5432/exam_system
 DB_HOST=localhost
-DB_USER=root
+DB_USER=postgres
 DB_PASSWORD=your_password
 DB_NAME=exam_system
 PORT=5000

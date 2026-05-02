@@ -1,66 +1,66 @@
-const mysql = require('mysql2');
+const { Pool } = require('pg');
 require('dotenv').config();
 
-console.log('\n🔧 Creating Comments Table');
-console.log('================================');
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+    throw new Error('DATABASE_URL is required for PostgreSQL connection');
+}
 
-const config = {
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'exam_system'
-};
-
-const connection = mysql.createConnection(config);
-
-connection.connect((err) => {
-    if (err) {
-        console.error('❌ Connection failed!');
-        console.error('Error:', err.message);
-        process.exit(1);
-    }
-    
-    console.log('✅ Connected to database!');
-    
-    // Create comments table
-    const createTableSQL = `
-        CREATE TABLE IF NOT EXISTS comments (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            paper_id VARCHAR(50) NOT NULL,
-            user_name VARCHAR(100) NOT NULL,
-            user_email VARCHAR(100) NULL,
-            comment TEXT NOT NULL,
-            is_admin_comment BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            
-            INDEX idx_paper_id (paper_id),
-            INDEX idx_created_at (created_at)
-        )
-    `;
-    
-    connection.query(createTableSQL, (err, result) => {
-        if (err) {
-            console.error('❌ Failed to create table:', err.message);
-            process.exit(1);
-        }
-        
-        console.log('✅ Comments table created successfully!');
-        
-        // Check if table exists
-        connection.query('SHOW TABLES LIKE "comments"', (err, result) => {
-            if (err) {
-                console.error('❌ Failed to verify table:', err.message);
-            } else {
-                if (result.length > 0) {
-                    console.log('✅ Table verified: comments table exists');
-                } else {
-                    console.log('❌ Table verification failed');
-                }
-            }
-            
-            connection.end();
-            console.log('\n✅ Setup complete');
-        });
-    });
+const pool = new Pool({
+    connectionString,
+    ssl: process.env.NODE_ENV === 'production'
+        ? { rejectUnauthorized: false }
+        : false
 });
+
+(async () => {
+    let client;
+    try {
+        console.log('\n🔧 Creating Comments Table');
+        console.log('================================');
+
+        client = await pool.connect();
+        console.log('✅ Connected to PostgreSQL');
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS comments (
+                id SERIAL PRIMARY KEY,
+                paper_id INT NOT NULL REFERENCES exam_papers(id) ON DELETE CASCADE,
+                user_name VARCHAR(100) NOT NULL,
+                user_email VARCHAR(100),
+                comment TEXT NOT NULL,
+                is_admin_comment BOOLEAN DEFAULT FALSE,
+                parent_id INT REFERENCES comments(id) ON DELETE CASCADE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_comments_paper_id ON comments(paper_id)
+        `);
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at)
+        `);
+
+        console.log('✅ Comments table created successfully!');
+
+        const { rows } = await client.query(
+            `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'comments'`
+        );
+
+        if (rows.length > 0) {
+            console.log('✅ Table verified: comments table exists');
+        } else {
+            console.log('❌ Table verification failed');
+        }
+
+        console.log('\n✅ Setup complete');
+    } catch (err) {
+        console.error('❌ Failed to create comments table:', err.message);
+        process.exit(1);
+    } finally {
+        if (client) client.release();
+        await pool.end();
+    }
+})();

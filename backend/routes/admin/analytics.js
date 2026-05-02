@@ -16,11 +16,11 @@ router.get('/', authenticateToken, async (req, res) => {
         const [todayVisits] = await db.query('SELECT COUNT(*) as count FROM site_visits WHERE DATE(visited_at) = ?', [today]);
         const [monthVisits] = await db.query('SELECT COUNT(*) as count FROM site_visits WHERE visited_at >= ?', [firstDayOfMonth]);
         const [totalPapers] = await db.query('SELECT COUNT(*) as count FROM exam_papers');
-        const [activePapers] = await db.query('SELECT COUNT(*) as count FROM exam_papers WHERE status = "active"');
-        const [generalPapers] = await db.query('SELECT COUNT(*) as count FROM exam_papers WHERE category = "General"');
-        const [tvetPapers] = await db.query('SELECT COUNT(*) as count FROM exam_papers WHERE category = "TVET"');
-        const [olevelPapers] = await db.query('SELECT COUNT(*) as count FROM exam_papers WHERE level = "O-Level"');
-        const [alevelPapers] = await db.query('SELECT COUNT(*) as count FROM exam_papers WHERE level = "A-Level"');
+        const [activePapers] = await db.query("SELECT COUNT(*) as count FROM exam_papers WHERE status = 'active'");
+        const [generalPapers] = await db.query("SELECT COUNT(*) as count FROM exam_papers WHERE category = 'General'");
+        const [tvetPapers] = await db.query("SELECT COUNT(*) as count FROM exam_papers WHERE category = 'TVET'");
+        const [olevelPapers] = await db.query("SELECT COUNT(*) as count FROM exam_papers WHERE level = 'O-Level'");
+        const [alevelPapers] = await db.query("SELECT COUNT(*) as count FROM exam_papers WHERE level = 'A-Level'");
         const [papersByYear] = await db.query('SELECT year, COUNT(*) as count FROM exam_papers GROUP BY year ORDER BY year DESC');
         const [papersBySubject] = await db.query('SELECT subject, COUNT(*) as count FROM exam_papers GROUP BY subject ORDER BY count DESC LIMIT 10');
         const [totalDownloads] = await db.query('SELECT COUNT(*) as count FROM downloads');

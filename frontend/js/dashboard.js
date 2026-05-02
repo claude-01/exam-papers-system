@@ -1,5 +1,4 @@
 // Dashboard JavaScript
-const API_BASE = 'https://exam-papers-system.onrender.com';
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Dashboard page loaded');
@@ -26,7 +25,7 @@ async function loadDashboardData() {
         showLoadingStates();
         
         // Fetch papers data
-        const papersResponse = await fetch(`${API_BASE}/api/papers/admin`, {
+        const papersResponse = await fetch(getApiUrl('/api/admin/papers'), {
             credentials: 'include',
             headers: {
                 'Cache-Control': 'no-cache',
@@ -166,7 +165,7 @@ function displayRecentPapers(papers) {
 
 async function loadAnalyticsSummary() {
     try {
-        const response = await fetch(`${API_BASE}/api/analytics`, {
+        const response = await fetch(getApiUrl('/api/analytics'), {
             credentials: 'include',
             headers: {
                 'Cache-Control': 'no-cache',
@@ -218,7 +217,7 @@ function updateVisitorStats(analytics) {
 
 async function logout() {
     try {
-        const response = await fetch(`${API_BASE}/api/auth/logout`, {
+        const response = await fetch(getApiUrl('/api/auth/logout'), {
             method: 'POST',
             credentials: 'include'
         });

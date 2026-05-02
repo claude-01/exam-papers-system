@@ -1,5 +1,4 @@
 services:
-  # Production API Server
   - type: web
     name: exam-papers-api
     runtime: node

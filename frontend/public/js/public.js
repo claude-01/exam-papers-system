@@ -32,7 +32,7 @@ async function loadPapers() {
     
     try {
         console.log('Fetching papers from API...');
-        const response = await fetch('/api/papers/public');
+        const response = await fetch(getApiUrl('/api/papers/public'));
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -862,7 +862,7 @@ function loadModalComments(paperId) {
 
     console.log('Loading comments for paper ID:', paperId);
 
-    fetch(`/api/comments/paper/${paperId}`)
+    fetch(getApiUrl(`/api/comments/paper/${paperId}`))
         .then(response => response.json())
         .then(data => {
             console.log('Comments loaded:', data);
@@ -1129,7 +1129,7 @@ async function togglePaperComments(paperId, subject) {
 
 async function loadPaperComments(paperId) {
     try {
-        const response = await fetch(`/api/comments/paper/${paperId}`);
+        const response = await fetch(getApiUrl(`/api/comments/paper/${paperId}`));
         const data = await response.json();
         
         if (data.success) {
@@ -1176,7 +1176,7 @@ async function submitPaperComment(event, paperId) {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting...';
         
-        const response = await fetch('/api/comments', {
+        const response = await fetch(getApiUrl('/api/comments'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ paperId, name, email, comment })

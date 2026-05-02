@@ -186,7 +186,7 @@ async function loadPapers() {
     showLoading();
 
     try {
-        const response = await fetch(getApiUrl('/api/papers/admin'), {
+        const response = await fetch(getApiUrl('/api/admin/papers'), {
             credentials: 'include',
             headers: {
                 'Cache-Control': 'no-cache'

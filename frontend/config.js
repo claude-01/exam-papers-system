@@ -1,7 +1,9 @@
 // API Configuration
-const API_BASE_URL = window.location.hostname === 'localhost' 
+const API_BASE_URL = window.location.hostname === 'localhost'
     ? 'http://localhost:5000'
-    : 'https://exam-papers-system.onrender.com';
+    : window.location.hostname === 'nesapastnationalexam.netlify.app'
+        ? 'https://exam-papers-system-1.onrender.com'
+        : 'https://exam-papers-system-1.onrender.com';
 
 // Utility function to build API URLs
 function getApiUrl(endpoint) {
