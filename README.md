@@ -39,7 +39,7 @@ A comprehensive web-based platform for managing and accessing NESA (National Exa
 backend/
 ├── server.js              # Main application server
 ├── config/
-│   └── database.js        # PostgreSQL database configuration
+│   └── database.js        # MySQL database configuration
 ├── routes/
 │   ├── papers.js          # Paper management endpoints
 │   ├── comments.js        # Comment system endpoints
@@ -78,7 +78,7 @@ frontend/
 
 ### Prerequisites
 - Node.js 14.0 or higher
-- PostgreSQL 12 or higher
+- MySQL (via XAMPP) 5.7 or higher
 - Modern web browser
 
 ### Installation
@@ -102,7 +102,7 @@ npm install
 
 3. **Database Setup**
 ```bash
-# Initialize the PostgreSQL schema from backend/init-db.js
+# Initialize the MySQL schema from backend/init-db.js
 cd backend
 npm install
 npm run init-db
@@ -113,14 +113,14 @@ npm run init-db
 # Copy environment template
 cp .env.example .env
 
-# Edit .env with your database credentials or use DATABASE_URL
+# Edit .env with your MySQL database credentials
 NODE_ENV=development
-DATABASE_URL=postgresql://username:password@localhost:5432/exam_system
 DB_HOST=localhost
-DB_USER=postgres
-DB_PASSWORD=your_password
+DB_USER=root
+DB_PASSWORD=your_mysql_password
 DB_NAME=exam_system
 PORT=5000
+JWT_SECRET=your-super-secret-jwt-key
 ```
 
 5. **Start the application**
@@ -161,11 +161,6 @@ exam-papers-system/
 │   │   ├── analytics.html
 │   │   └── js/             # Admin scripts
 │   └── css/                # Global styles
-├── deployments/            # Deployment configurations
-│   ├── vercel.json         # Vercel deployment
-│   ├── render.yaml         # Render deployment
-│   └── heroku.json         # Heroku deployment
-├── DEPLOY.md               # Deployment guide
 ├── README.md               # This file
 └── .gitignore              # Git ignore rules
 ```
@@ -207,27 +202,7 @@ exam-papers-system/
 - Update middleware in `backend/middleware/`
 - Modify database models as needed
 
-## 🚀 Deployment
-
-### Vercel (Recommended)
-```bash
-npm install -g vercel
-vercel --prod
-```
-
-### Render
-```bash
-npm install -g render-cli
-render deploy
-```
-
-### Heroku
-```bash
-heroku create exam-papers-system
-git subtree push --prefix backend heroku master
-```
-
-## 📊 Features in Detail
+##  Features in Detail
 
 ### Comment System
 - **Threaded Comments**: Support for nested replies

@@ -1,44 +1,38 @@
-const { Pool } = require('pg');
+const mysql = require('mysql2/promise');
 require('dotenv').config();
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-    throw new Error('DATABASE_URL is required for PostgreSQL connection');
-}
-if (/infinityfree\.com|sql311\.|sql312\./i.test(connectionString)) {
-    throw new Error('Legacy InfinityFree DATABASE_URL is not supported. Set DATABASE_URL to Render PostgreSQL only.');
-}
-if (process.env.DB_HOST || process.env.DB_USER || process.env.DB_PASSWORD || process.env.DB_NAME) {
-    console.warn('⚠️ Deprecated MySQL env vars detected. Remove DB_HOST, DB_USER, DB_PASSWORD, DB_NAME and use DATABASE_URL only.');
-}
-if (process.env.PG_CONNECTION_STRING) {
-    console.warn('⚠️ PG_CONNECTION_STRING is ignored. Use DATABASE_URL only.');
-}
-console.log('🔐 DATABASE_URL loaded:', connectionString.replace(/:[^:@]+@/, ':******@'));
+const dbConfig = {
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'exam_system',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+};
 
-const pool = new Pool({
-    connectionString,
-    ssl: process.env.NODE_ENV === 'production'
-        ? { rejectUnauthorized: false }
-        : false,
-    max: 10
-});
+console.log('🔐 Database config loaded for:', dbConfig.host, dbConfig.database);
 
-pool.on('error', (err) => {
-    console.error('Unexpected PostgreSQL idle client error:', err);
-});
+let pool;
 
-function convertPlaceholders(sql) {
-    let index = 0;
-    return sql.replace(/\?/g, () => `$${++index}`);
+async function createPool() {
+    try {
+        pool = mysql.createPool(dbConfig);
+        console.log('✅ MySQL connection pool created successfully');
+        return pool;
+    } catch (err) {
+        console.error('❌ Failed to create MySQL connection pool:', err.message);
+        throw err;
+    }
 }
 
 async function testDatabaseConnection() {
     try {
-        const client = await pool.connect();
-        await client.query('SELECT 1');
-        client.release();
-        console.log('✅ PostgreSQL database connected successfully');
+        if (!pool) await createPool();
+        const connection = await pool.getConnection();
+        await connection.execute('SELECT 1');
+        connection.release();
+        console.log('✅ MySQL database connected successfully');
         return true;
     } catch (err) {
         console.error('❌ Database connection failed:', err.message);
@@ -48,20 +42,22 @@ async function testDatabaseConnection() {
 
 async function query(sql, params = []) {
     try {
-        const convertedSql = convertPlaceholders(sql);
-        const result = await pool.query(convertedSql, params);
+        if (!pool) await createPool();
+        const [rows, fields] = await pool.execute(sql, params);
 
-        if (result.command === 'SELECT') {
-            return [result.rows, result];
+        // For SELECT queries, return rows
+        if (sql.trim().toUpperCase().startsWith('SELECT')) {
+            return [rows, { rowCount: rows.length }];
         }
 
+        // For INSERT/UPDATE/DELETE, return affected rows info
         const meta = {
-            rowCount: result.rowCount,
-            affectedRows: result.rowCount,
-            insertId: result.rows && result.rows[0] ? result.rows[0].id : null
+            rowCount: rows.affectedRows || 0,
+            affectedRows: rows.affectedRows || 0,
+            insertId: rows.insertId || null
         };
 
-        return [meta, result];
+        return [meta, { rowCount: rows.affectedRows }];
     } catch (err) {
         console.error('Database query error:', err);
         throw err;
@@ -75,6 +71,6 @@ testDatabaseConnection().catch(err => {
 });
 
 module.exports = {
-    pool,
-    query
+    query,
+    testDatabaseConnection
 };

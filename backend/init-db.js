@@ -1,42 +1,38 @@
 #!/usr/bin/env node
 
-const { Pool } = require('pg');
+const mysql = require('mysql2/promise');
 require('dotenv').config();
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-    throw new Error('DATABASE_URL is required for PostgreSQL connection');
-}
-
-const pool = new Pool({
-    connectionString,
-    ssl: process.env.NODE_ENV === 'production'
-        ? { rejectUnauthorized: false }
-        : false
-});
+const dbConfig = {
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'exam_system',
+    multipleStatements: true
+};
 
 async function initializeDatabase() {
-    let client;
+    let connection;
     try {
-        console.log('🚀 Initializing PostgreSQL database...');
-        client = await pool.connect();
+        console.log('🚀 Initializing MySQL database...');
+        connection = await mysql.createConnection(dbConfig);
 
         console.log('🚀 Creating tables...');
 
-        await client.query(`
+        await connection.execute(`
             CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
+                id INT AUTO_INCREMENT PRIMARY KEY,
                 username VARCHAR(100) UNIQUE NOT NULL,
                 password VARCHAR(255) NOT NULL,
                 role VARCHAR(50) DEFAULT 'admin',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         `);
         console.log('✅ Users table created');
 
-        await client.query(`
+        await connection.execute(`
             CREATE TABLE IF NOT EXISTS exam_papers (
-                id SERIAL PRIMARY KEY,
+                id INT AUTO_INCREMENT PRIMARY KEY,
                 year INT NOT NULL,
                 subject VARCHAR(100) NOT NULL,
                 level VARCHAR(50) NOT NULL,
@@ -44,67 +40,70 @@ async function initializeDatabase() {
                 trade_or_combination VARCHAR(100),
                 file_path TEXT NOT NULL,
                 status VARCHAR(50) DEFAULT 'active',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
         `);
         console.log('✅ Exam papers table created');
 
-        await client.query(`
+        await connection.execute(`
             CREATE TABLE IF NOT EXISTS site_visits (
-                id SERIAL PRIMARY KEY,
+                id INT AUTO_INCREMENT PRIMARY KEY,
                 ip_address VARCHAR(45),
                 user_agent TEXT,
-                visited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                visited_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         `);
         console.log('✅ Site visits table created');
 
-        await client.query(`
+        await connection.execute(`
             CREATE TABLE IF NOT EXISTS downloads (
-                id SERIAL PRIMARY KEY,
-                paper_id INT NOT NULL REFERENCES exam_papers(id) ON DELETE CASCADE,
-                downloaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                paper_id INT NOT NULL,
+                downloaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (paper_id) REFERENCES exam_papers(id) ON DELETE CASCADE
             )
         `);
         console.log('✅ Downloads table created');
 
-        await client.query(`
+        await connection.execute(`
             CREATE TABLE IF NOT EXISTS comments (
-                id SERIAL PRIMARY KEY,
-                paper_id INT NOT NULL REFERENCES exam_papers(id) ON DELETE CASCADE,
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                paper_id INT NOT NULL,
                 user_name VARCHAR(100) NOT NULL,
                 user_email VARCHAR(100),
                 comment TEXT NOT NULL,
                 is_admin_comment BOOLEAN DEFAULT FALSE,
-                parent_id INT REFERENCES comments(id) ON DELETE CASCADE,
+                parent_id INT,
                 status VARCHAR(50) DEFAULT 'pending',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (paper_id) REFERENCES exam_papers(id) ON DELETE CASCADE,
+                FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE
             )
         `);
         console.log('✅ Comments table created');
 
-        await client.query(`
+        await connection.execute(`
             CREATE TABLE IF NOT EXISTS bookmarks (
-                id SERIAL PRIMARY KEY,
-                paper_id INT NOT NULL REFERENCES exam_papers(id) ON DELETE CASCADE,
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                paper_id INT NOT NULL,
                 ip_address VARCHAR(45),
-                bookmarked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                bookmarked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (paper_id) REFERENCES exam_papers(id) ON DELETE CASCADE
             )
         `);
         console.log('✅ Bookmarks table created');
 
-        console.log('\n✨ PostgreSQL database initialization complete!');
+        console.log('\n✨ MySQL database initialization complete!');
         process.exit(0);
     } catch (error) {
         console.error('❌ Database initialization failed:', error.message);
         process.exit(1);
     } finally {
-        if (client) {
-            client.release();
+        if (connection) {
+            await connection.end();
         }
-        await pool.end();
     }
 }
 

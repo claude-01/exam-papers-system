@@ -1,52 +1,53 @@
-const { Pool } = require('pg');
+const mysql = require('mysql2/promise');
 require('dotenv').config();
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-    throw new Error('DATABASE_URL is required for PostgreSQL connection');
-}
+const dbConfig = {
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'exam_system'
+};
 
-console.log('\n🔍 Testing Database Connection');
+console.log('\n🔍 Testing MySQL Database Connection');
 console.log('================================');
 console.log('Configuration:');
-console.log(`Connection: ${connectionString.replace(/:[^:@]+@/, ':******@')}`);
+console.log(`Host: ${dbConfig.host}`);
+console.log(`Database: ${dbConfig.database}`);
+console.log(`User: ${dbConfig.user}`);
 console.log('================================');
 
-const pool = new Pool({
-    connectionString,
-    ssl: process.env.NODE_ENV === 'production'
-        ? { rejectUnauthorized: false }
-        : false
-});
-
 (async () => {
+    let connection;
     try {
-        const client = await pool.connect();
+        connection = await mysql.createConnection(dbConfig);
         console.log('✅ Connected successfully!');
 
-        const result = await client.query('SELECT 1 + 1 AS solution');
-        console.log('✅ Query test passed:', result.rows[0].solution);
+        const [rows] = await connection.execute('SELECT 1 + 1 AS solution');
+        console.log('✅ Query test passed:', rows[0].solution);
 
-        const tables = await client.query(
-            `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name`
+        const [tables] = await connection.execute(
+            `SHOW TABLES`
         );
 
-        console.log(`\nTables in database (${tables.rows.length}):`);
-        if (tables.rows.length === 0) {
+        console.log(`\nTables in database (${tables.length}):`);
+        if (tables.length === 0) {
             console.log('  No tables found. Run init-db.js to create the required tables.');
         } else {
-            tables.rows.forEach(table => {
-                console.log(`  - ${table.table_name}`);
+            tables.forEach(table => {
+                console.log(`  - ${Object.values(table)[0]}`);
             });
         }
 
-        client.release();
         console.log('\n✅ Test complete');
     } catch (err) {
         console.error('❌ Connection failed!');
         console.error('Error:', err.message);
         process.exit(1);
     } finally {
-        await pool.end();
+        if (connection) {
+            await connection.end();
+        }
+    }
+})();
     }
 })();

@@ -1,52 +1,50 @@
-const { Pool } = require('pg');
+const mysql = require('mysql2/promise');
 require('dotenv').config();
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-    throw new Error('DATABASE_URL is required for PostgreSQL connection');
-}
-
-const pool = new Pool({
-    connectionString,
-    ssl: process.env.NODE_ENV === 'production'
-        ? { rejectUnauthorized: false }
-        : false
-});
+const dbConfig = {
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'exam_system'
+};
 
 (async () => {
-    let client;
+    let connection;
     try {
         console.log('\n🔧 Creating Comments Table');
         console.log('================================');
 
-        client = await pool.connect();
-        console.log('✅ Connected to PostgreSQL');
+        connection = await mysql.createConnection(dbConfig);
+        console.log('✅ Connected to MySQL');
 
-        await client.query(`
+        await connection.execute(`
             CREATE TABLE IF NOT EXISTS comments (
-                id SERIAL PRIMARY KEY,
-                paper_id INT NOT NULL REFERENCES exam_papers(id) ON DELETE CASCADE,
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                paper_id INT NOT NULL,
                 user_name VARCHAR(100) NOT NULL,
                 user_email VARCHAR(100),
                 comment TEXT NOT NULL,
                 is_admin_comment BOOLEAN DEFAULT FALSE,
-                parent_id INT REFERENCES comments(id) ON DELETE CASCADE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                parent_id INT,
+                status VARCHAR(50) DEFAULT 'pending',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (paper_id) REFERENCES exam_papers(id) ON DELETE CASCADE,
+                FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE
             )
         `);
 
-        await client.query(`
-            CREATE INDEX IF NOT EXISTS idx_comments_paper_id ON comments(paper_id)
+        await connection.execute(`
+            CREATE INDEX idx_comments_paper_id ON comments(paper_id)
         `);
-        await client.query(`
-            CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at)
+        await connection.execute(`
+            CREATE INDEX idx_comments_created_at ON comments(created_at)
         `);
 
         console.log('✅ Comments table created successfully!');
 
-        const { rows } = await client.query(
-            `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'comments'`
+        const [rows] = await connection.execute(
+            `SHOW TABLES LIKE 'comments'`
         );
 
         if (rows.length > 0) {
@@ -60,7 +58,6 @@ const pool = new Pool({
         console.error('❌ Failed to create comments table:', err.message);
         process.exit(1);
     } finally {
-        if (client) client.release();
-        await pool.end();
+        if (connection) await connection.end();
     }
 })();

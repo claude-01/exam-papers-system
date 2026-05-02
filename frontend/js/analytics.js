@@ -3,7 +3,7 @@ let visitorsChart = null;
 let yearChart = null;
 let subjectChart = null;
 
-const API_BASE = 'https://exam-papers-system.onrender.com';
+const API_BASE = 'http://localhost:5000';
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Analytics page loaded');
