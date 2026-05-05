@@ -20,7 +20,7 @@ router.post('/login', async (req, res) => {
 
         // For demo purposes, using hardcoded admin credentials
         // In production, this should check against database
-        if (username === 'admin' && password === 'admin123') {
+        if (username === 'Claude' && password === 'Umusuder01@') {
             const token = jwt.sign(
                 { username, role: 'admin' },
                 JWT_SECRET,
