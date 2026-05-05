@@ -5,7 +5,7 @@ const path = require('path');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
-const papersRoutes = require('./routes/papers');
+const papersRoutes = require('./routes/public/papers');
 const analyticsRoutes = require('./routes/analytics');
 const { authenticateToken, preventCache } = require('./middleware/auth');
 
